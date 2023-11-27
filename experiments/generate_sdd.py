@@ -2,8 +2,8 @@ from typing import List, Any
 from pysdd.sdd import SddManager, Vtree, WmcManager, SddNode
 import numpy as np
 from copy import copy
-from itertools import groupby
 import os
+from itertools import groupby
 from functools import reduce
 
 class LinearConstraintToSddApproximator:
@@ -107,7 +107,7 @@ def compile_bss_constraint(var_count):
         bit_weights[i] = bit_weight_pattern
         bit_weights = bit_weights.reshape(-1)
         print(bit_weights)
-        lower_const = approximator.get_sdd_gte(bit_weights, sdd_vars, 1)
+        lower_const = approximator.get_sdd_gte(bit_weights, sdd_vars, 0)
         all_constraints.append(lower_const)
         
         #Constraint: v <= 35 ---> -v >= -35 
@@ -140,8 +140,10 @@ def compile_bss_constraint(var_count):
 
     print("Getting all models")
     all_models = get_all_models(sddmanager, sdd)
-    np.save(f"{base_folder}/data_{var_count}.npy", all_models)
-    print("done")
+    all_values = np.sum((all_models.astype(int) * bit_weights).reshape((-1, var_count, bits_per_var)), axis=2)
+    np.save(f"{base_folder}/data_{var_count}.npy", all_values)
+    np.save(f"{base_folder}/bits_{var_count}.npy", all_models)
+    print("Done")
 
 if __name__ == "__main__":
     compile_bss_constraint(3)

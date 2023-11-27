@@ -23,6 +23,7 @@ python -m experiments.generate_samples_with_rejection --problems All --count 100
 Results wtill be saved in `logs/samples_generation/rejection*`. 
 
 ### PySDD
+To generate data for BSS-3 and BSS-5. Results are saved in `./logs/sample_generation/sdd`
 ```bash
 python ./experiments/generate_sdd.py 
 ```
