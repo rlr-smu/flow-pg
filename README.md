@@ -17,11 +17,15 @@ python -m experiments.generate_samples_with_hmc --problems All --count 1000000 -
 Results wtill be saved in `logs/samples_generation/hmc*`. 
 
 ### Rejection sampling
-```
+```bash
 python -m experiments.generate_samples_with_rejection --problems All --count 1000000 --log_dir logs/sample_generation/rejection
 ```
 Results wtill be saved in `logs/samples_generation/rejection*`. 
 
+### PySDD
+```bash
+python ./experiments/generate_sdd.py 
+```
 
 ## Training the flow model
 
