@@ -50,13 +50,13 @@ def main():
     optimizer = th.optim.Adam([p for p in flow.parameters() if p.requires_grad == True], lr=params.lr)
 
     # Define the mollified uniform distribution
-    box_l = th.full((constraint.dim, ), -1).double()
-    box_h = th.full((constraint.dim, ), 1).double()
+    box_l = th.full((constraint.dim, ), -1).float()
+    box_h = th.full((constraint.dim, ), 1).float()
     uniform_constraint = BoxConstraint(constraint.dim, box_l, box_h).to(params.device)
     mollified_uniform_distribution = ConstrainedDistribution(uniform_constraint, params.mollifier_sigma)
 
     # Load dataset
-    data = th.from_numpy(np.load(params.data_file)).double().to(params.device)
+    data = th.from_numpy(np.load(params.data_file)).float().to(params.device)
     if params.train_sample_count + params.test_sample_count > len(data):
         raise ValueError("Not enough samples in the dataset")
     train_data = data[:params.train_sample_count]
@@ -83,7 +83,7 @@ def main():
             # Evaluate
             with th.no_grad():
                 # Calculate accuracy (z -(g)-> x)
-                z_act = th.rand((len(test_data), constraint.var_count)).double().to(params.device)*2-1
+                z_act = th.rand((len(test_data), constraint.var_count)).float().to(params.device)*2-1
                 z = th.concat([z_act, test_data[:, constraint.var_count:]], dim=1) # Inclue conditional variables
                 generated_samples = flow.g(z)[0]
                 validity = constraint.is_feasible(generated_samples)

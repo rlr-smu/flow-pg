@@ -4,7 +4,12 @@ import numpy as np
 from copy import copy
 import os
 from itertools import groupby
+from experiments.common.setup_experiment import get_log_dir
 from functools import reduce
+import hydra
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LinearConstraintToSddApproximator:
 
@@ -41,10 +46,10 @@ class LinearConstraintToSddApproximator:
         last_layer = [(0, self.true_sink)]
         for (w, node), remaining_w in zip(sorted_weights_and_nodes, weights_remaining_sum):
             new_layer = []
-            print(f"\n{remaining_w}", "Size:", len(last_layer))
+            # print(f"\n{remaining_w}", "Size:", len(last_layer))
             # print(last_layer)
             for node_i, (lw, last_node) in enumerate(last_layer):
-                print(remaining_w, "Size:", node_i+1, "/", len(last_layer), end="\t\t\t\r")
+                # print(remaining_w, "Size:", node_i+1, "/", len(last_layer), end="\t\t\t\r")
                 high = lw+w
                 high_node = self.sdd_and(node, last_node)
                 low_node = self.sdd_and(self.sdd_not(node), last_node)
@@ -80,14 +85,14 @@ def get_all_models(sdd_manager, sdd):
     return np.array(all_models).astype(bool)
 
 
-def compile_bss_constraint(var_count):
-    bits_per_var = 6
+def compile_bss_constraint(var_count, bits_per_var, base_folder):
+
     binary_var_count = var_count * bits_per_var
     var_order = np.arange(binary_var_count)+1
     global_sum = 30*var_count
     local_bound = 35
-    print("Global sum:", global_sum)
-    print("Var order", var_order)
+    logger.info(f"Global sum: {global_sum}")
+    logger.info(f"Var order: {var_order}")
     bit_weight_pattern = 2**(bits_per_var - np.arange(bits_per_var)-1)
     vtree = Vtree(
         var_count=binary_var_count,
@@ -95,7 +100,6 @@ def compile_bss_constraint(var_count):
         vtree_type="balanced")
     sddmanager = SddManager.from_vtree(vtree)
     sdd_vars = list(sddmanager.vars)
-    print(sdd_vars)
     approximator = LinearConstraintToSddApproximator(sddmanager.true(), sddmanager.false())
     
     assert len(sdd_vars) == binary_var_count
@@ -106,7 +110,7 @@ def compile_bss_constraint(var_count):
         bit_weights = np.zeros((var_count, bits_per_var))
         bit_weights[i] = bit_weight_pattern
         bit_weights = bit_weights.reshape(-1)
-        print(bit_weights)
+        # print(bit_weights)
         lower_const = approximator.get_sdd_gte(bit_weights, sdd_vars, 0)
         all_constraints.append(lower_const)
         
@@ -127,7 +131,6 @@ def compile_bss_constraint(var_count):
     print(sdd)
     print("Sdd node count:", sdd.count())
     print("saving sdd and vtree ... ")
-    base_folder = "./logs/sample_generation/sdd"
     os.makedirs(base_folder, exist_ok=True)
     with open(f"{base_folder}/sdd_{var_count}.dot", "w") as out:
         print(sdd.dot(), file=out)
@@ -145,6 +148,12 @@ def compile_bss_constraint(var_count):
     np.save(f"{base_folder}/bits_{var_count}.npy", all_models)
     print("Done")
 
+@hydra.main(version_base=None, config_path="./conf", config_name="generate_samples_with_sdd")
+def main(cfg):
+    bits_per_var = cfg.bits_per_var
+    base_folder = get_log_dir()
+    compile_bss_constraint(3, bits_per_var, base_folder)
+    compile_bss_constraint(5, bits_per_var, base_folder)
+
 if __name__ == "__main__":
-    compile_bss_constraint(3)
-    compile_bss_constraint(5)
+    main()

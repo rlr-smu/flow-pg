@@ -1,22 +1,56 @@
 from dataclasses import dataclass
 import torch as th
 from core.constraints.base_constraint import BaseConstraint
+import gurobipy as gp
+from abc import ABC, abstractmethod
+from typing import Tuple
 
-@dataclass
+
+
+class ConditionedQuadraticConstraint(BaseConstraint, ABC):
+    def __init__(self, var_count, conditional_param_count):
+        super().__init__(var_count, conditional_param_count)
+
+
+    @abstractmethod
+    def _get_q_m(y:th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
+        pass
+    
+    def _get_cv(self, x, y):
+        Q, m = self._get_q_m(y)
+        return th.einsum('bijk,bj,bk->bi', Q, x, x) - m
+
+    def _add_gp_constraints(self, model, x, y):
+        Q, m = self._get_q_m(th.tensor(y, device=self.device))
+        Q, m = Q[0], m[0]
+        for i in range(len(Q)):
+            Sq = gp.QuadExpr()
+            for j in range(len(Q[i])):
+                Sq+=Q[i][j]*x[i].item()*x[j].item()
+            model.addConstr(Sq <= m[i])
+    
+
 class QuadraticConstraint(BaseConstraint):
     """
     Quadratic constraints with: $\sum Q_ij a_i a_j \leq m$ 
     """
-    Q: th.TensorType
-    m: th.TensorType
 
-    def get_cv(self, x: th.TensorType):
-        assert x.shape[1] == self.Q.shape[1], "Shape should match with Q"
+    def __init__(self, var_count, Q: th.Tensor, m: th.Tensor):
+        super().__init__(var_count, 0)
+        self.register_buffer('Q', Q)    
+        self.register_buffer('m', m)
+    
+    def _get_cv(self, x, y):
         return th.einsum('ijk,bj,bk->bi', self.Q, x, x) - self.m
 
-    def __post_init__(self):
-        self.Q.shape[0] == len(self.m), "Q and b should have same number of rows"
-        assert self.Q.shape[1] == self.Q.shape[2], "Q should be square"
+    def _add_gp_constraints(self, model, x, y):
+        Q, m = self.Q, self.m
+        for i in range(len(Q)):
+            Sq = gp.QuadExpr()
+            for j in range(len(Q[i])):
+                Sq+=Q[i][j]*x[i].item()*x[j].item()
+            model.addConstr(Sq <= m[i])
+
 
 def test_quadratic_constraints():
     cons = QuadraticConstraint(2, th.tensor([

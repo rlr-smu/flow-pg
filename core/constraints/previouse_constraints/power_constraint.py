@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import torch as th
-from core.constraints.conditioned_constraint import ConditionedConstraint
+# from core.constraints.conditioned_constraint import ConditionedConstraint
 
 @dataclass
 class PowerConstraint(ConditionedConstraint):

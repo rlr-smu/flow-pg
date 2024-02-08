@@ -19,17 +19,29 @@ def get_hmc_samples(logprob, v_count, sample_count, random_seed: Union[None, int
     x0 =  x0 + (np.random.rand(v_count)-0.5)* 0.000001
     return hmc(logprob, x0=x0, n_samples=sample_count)
 
-def get_hmc_samples_for_constraint(constraint: BaseConstraint, sample_count, random_seed: Union[None, int]=None, origin: np.ndarray=None):
+def get_hmc_samples_for_constraint(constraint: BaseConstraint, state_bound_constraint: BaseConstraint, sample_count, random_seed: Union[None, int]=None, origin: np.ndarray=None):
+    constraint = constraint.to(th.float64)
+    state_bound_constraint = state_bound_constraint.to(th.float64) if state_bound_constraint is not None else None
+
     def logprob(x):
         grad = np.zeros((len(x), ))
-        feasible = constraint.is_feasible(th.tensor(x).unsqueeze(dim=0))[0]
+        if constraint.conditional_param_count > 0:
+            y = th.tensor(x[constraint.var_count:]).unsqueeze(dim=0)
+            feasible = state_bound_constraint.is_feasible(y, None, 0)[0]
+        else:
+            feasible = True
+            y = None
+        feasible = feasible and constraint.is_feasible(th.tensor(x[: constraint.var_count]).unsqueeze(dim=0), y, 0)[0]
         if not feasible:
             return -np.inf, grad
         else:
             return 0.0, grad
-
-    samples = get_hmc_samples(logprob, constraint.dim, sample_count, random_seed, origin)
-    feasibility = constraint.is_feasible(th.tensor(samples))
+    samples = get_hmc_samples(logprob, constraint.var_count + constraint.conditional_param_count, sample_count, random_seed, origin)
+    if constraint.conditional_param_count > 0:
+        y = th.tensor(samples[:, constraint.var_count:])
+    else:
+        y = None
+    feasibility = constraint.is_feasible(th.tensor(samples[:, :constraint.var_count]), y, 0)
     feasible_count = feasibility.int().sum()
     if feasible_count < sample_count:
         print(f"Warning: Fewer feasible samples were generated with HMC: {feasible_count}/{sample_count}")

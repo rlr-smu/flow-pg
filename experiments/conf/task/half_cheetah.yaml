@@ -1,0 +1,12 @@
+constraint:
+  action_constraint:
+    _target_: core.constraints.OrthoplexConstraint
+    var_count: 6
+    ub: 20
+  state_bounds: [-30., 30.]
+  state_indexes: [11, 12, 13, 14, 15, 16] # State indexs from the environment state
+
+env:
+  var_count: 2
+  action_low: -1.0
+  action_high: 1.0
