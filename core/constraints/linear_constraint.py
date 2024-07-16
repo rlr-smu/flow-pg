@@ -17,7 +17,6 @@ class LinearConstraint(BaseConstraint):
         self.register_buffer('b', b)
 
     def _get_cv(self, x: th.TensorType, y):
-        assert y is None
         return th.einsum('ij,bj->bi', self.A, x) - self.b
     
     

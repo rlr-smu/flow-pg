@@ -20,6 +20,7 @@ class BaseConstraint(th.nn.Module, ABC):
 
     def __init__(self, var_count:int, conditional_param_count:int):
         super().__init__()
+        self._dummy_param = th.nn.Parameter(th.empty(0, dtype=th.float32, requires_grad=False))
         self.var_count = var_count # Number of variables in the constraint. i.e. = len(x), len(z)
         self.conditional_param_count = conditional_param_count # Number of variables in the conditional part. i.e. = len(y)
 
@@ -33,6 +34,17 @@ class BaseConstraint(th.nn.Module, ABC):
         """Implemented for individual instance, not for tha batch"""
         pass
 
+    @property
+    def device(self):
+        return self._dummy_param.device
+    
+    @property
+    def dtype(self):
+        return self._dummy_param.dtype
+
+    def to_tensor(self, value: np.ndarray) -> th.Tensor:
+        return th.tensor(value, device=self.device, dtype=self.dtype)
+
     def get_cv(self, x: th.Tensor, y:conditional_type) -> th.Tensor:
         """
         Return constraint violation signal for each constraint, positive: violated, negative: not-violated"""
@@ -42,8 +54,7 @@ class BaseConstraint(th.nn.Module, ABC):
     def __validate_input(self, x_or_z: Union[th.Tensor, np.ndarray], y: Union[th.Tensor, np.ndarray]):
         instance_dim = 1
         assert x_or_z.shape[instance_dim] == self.var_count, "x shape should match with var_count"
-        assert (y is None and self.conditional_param_count==0) or (y is not None and y.shape[instance_dim] == self.conditional_param_count), \
-                                    f"y shape should match with conditional_param_count, y:{y}, conditional_param_count:{self.conditional_param_count}"
+        assert (y is None and self.conditional_param_count==0) or (y is not None), "If y is None, then conditional param count has to be 0"
  
     def is_feasible(self, x: th.Tensor, y: conditional_type, cv_error_margin: float) -> th.Tensor:
         return th.sum(th.clip(self.get_cv(x, y), min=0), dim=1) <= cv_error_margin
@@ -51,7 +62,7 @@ class BaseConstraint(th.nn.Module, ABC):
     def add_gp_constraints(self, model: gp.Model, x:list, y: conditional_type_np):
         """Needs to implement for each constraint."""
         assert len(x) == self.var_count
-        assert (y is None and self.conditional_param_count==0) or y.shape[0] == self.conditional_param_count
+        assert (y is None and self.conditional_param_count==0) or y.shape[0] == self.conditional_param_count, f"y shape should match with conditional_param_count {self.conditional_param_count}, {y.shape}"
         return self._add_gp_constraints(model, x, y)
     
     def project(self, x_input: np.ndarray, y: conditional_type_np) -> np.ndarray:
@@ -63,7 +74,7 @@ class BaseConstraint(th.nn.Module, ABC):
                 # model.params.NonConvex = 2
                 x = []
                 for _ in range(self.var_count):
-                    x.append(model.addVar(lb=-1, ub =1, vtype = gp.GRB.CONTINUOUS))
+                    x.append(model.addVar(lb=-1, ub=1, vtype = gp.GRB.CONTINUOUS))
                 obj = gp.QuadExpr()
                 for i in range(self.var_count):
                     obj+=(x[i]-x_input[i])**2

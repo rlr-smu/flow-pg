@@ -9,6 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from omegaconf import DictConfig
 
 from core.constraints import BaseConstraint
+from experiments.generate_samples_with_hmc import Cfg
 # from experiments.common.setup_experiment import setup_experiment, flush_logs
 import torch as th
 from experiments.common.setup_experiment import get_log_dir
@@ -37,21 +38,21 @@ logger = logging.getLogger(__name__)
 
 
 @hydra.main(version_base=None, config_path="./conf", config_name="generate_samples_with_rejection")
-def main(cfg: DictConfig):
+def main(cfg: Cfg):
     log_dir = get_log_dir()
-    cfg_const = cfg.task.constraint
-    constraint:BaseConstraint  = instantiate(cfg_const.action_constraint, _convert_="all")
+    constraint:BaseConstraint  = instantiate(cfg.task.action_constraint, _convert_="all")
     s_c = 0
     batch_size = 100000
     valid_samples = []
-    state_bounds = cfg_const.state_bounds
+    state_bounds = cfg.task.state_bounds
     while s_c <= cfg.count:
+        actions = th.rand((batch_size, constraint.var_count))*2 - 1
         if constraint.conditional_param_count > 0:
             state = th.rand((batch_size, constraint.conditional_param_count))*(state_bounds[1] - state_bounds[0]) + state_bounds[0]
+            values = th.concat([actions,state], dim=1)
         else:
             state = None
-        actions = th.rand((batch_size, constraint.var_count))*2 - 1
-        values = th.concat([actions,state], dim=1)
+            values = actions
         validity = constraint.is_feasible(actions, state, 0)
         valid = values[validity]
         valid_samples.append(valid)
@@ -63,6 +64,7 @@ def main(cfg: DictConfig):
         seaborn.pairplot(df, plot_kws={"s": 1}).savefig(f"{log_dir}/plot.png")
     np.save(f"{log_dir}/data.npy", data)
     logger.info(f"Done, count:{len(data)}")
+    return 0 # For multirun
 
 
 if __name__ == "__main__":

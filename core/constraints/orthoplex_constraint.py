@@ -16,10 +16,10 @@ class OrthoplexConstraint(BaseConstraint):
     
     def _add_gp_constraints(self, model, x: list, y: ndarray):
         abs_vars = []
-        for i in range(self.a_dim):
+        for i in range(self.var_count):
             mul_var = model.addVar(lb = -gp.GRB.INFINITY, ub = gp.GRB.INFINITY, vtype = gp.GRB.CONTINUOUS)
-            model.addConstr(mul_var == self.scale[i]*x[i]*y[i])
+            model.addConstr(mul_var == x[i]*y[i])
             abs_var = model.addVar(lb=0, ub = gp.GRB.INFINITY, vtype = gp.GRB.CONTINUOUS)
             model.addGenConstrAbs(abs_var, mul_var)
             abs_vars.append(abs_var)
-        model.addConstr(sum(abs_vars) <= self.max_power)
+        model.addConstr(sum(abs_vars) <= self.ub)

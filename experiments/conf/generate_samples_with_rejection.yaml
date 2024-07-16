@@ -1,2 +1,6 @@
+defaults:
+  - common
+  - task: null
+
 count: 1000
 plot: false

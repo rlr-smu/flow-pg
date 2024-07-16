@@ -23,11 +23,12 @@ class ConditionedQuadraticConstraint(BaseConstraint, ABC):
     def _add_gp_constraints(self, model, x, y):
         Q, m = self._get_q_m(th.tensor(y, device=self.device))
         Q, m = Q[0], m[0]
-        for i in range(len(Q)):
+        for b in range(len(Q)):
             Sq = gp.QuadExpr()
-            for j in range(len(Q[i])):
-                Sq+=Q[i][j]*x[i].item()*x[j].item()
-            model.addConstr(Sq <= m[i])
+            for i in range(len(Q[b])):
+                for j in range(len(Q[b,i])):
+                    Sq+=Q[b,i,j].item()*x[i]*x[j]
+            model.addConstr(Sq <= m[b])
     
 
 class QuadraticConstraint(BaseConstraint):
@@ -45,11 +46,12 @@ class QuadraticConstraint(BaseConstraint):
 
     def _add_gp_constraints(self, model, x, y):
         Q, m = self.Q, self.m
-        for i in range(len(Q)):
+        for b in range(len(Q)):
             Sq = gp.QuadExpr()
-            for j in range(len(Q[i])):
-                Sq+=Q[i][j]*x[i].item()*x[j].item()
-            model.addConstr(Sq <= m[i])
+            for i in range(len(Q[b])):
+                for j in range(len(Q[b,i])):
+                    Sq+=Q[b,i,j].item()*x[i]*x[j]
+            model.addConstr(Sq <= m[b])
 
 
 def test_quadratic_constraints():

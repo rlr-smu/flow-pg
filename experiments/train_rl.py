@@ -1,37 +1,52 @@
 from dataclasses import dataclass
-from experiments.common.setup_experiment import setup_experiment, flush_logs, get_value_logger
+from experiments.common.setup_experiment import get_value_logger
 # from experiments.problems import all_problems, BaseProblem
-# from core.rl.ddpg_flow import DDPGFlow, DDPGProj
 from core.flow.real_nvp import RealNvp
 from omegaconf import DictConfig, OmegaConf
+import yaml
+import numpy as np
+from stable_baselines3.common.noise import NormalActionNoise
 from core.constraints import BaseConstraint
 import torch as th
 import hydra
+import gym
 from hydra.utils import instantiate
+from experiments.config import TaskConfig
+
+import pybulletgym
+
+@dataclass
+class Cfg:
+    task: TaskConfig
+    cv_error_margin: float
 
 
 @hydra.main(version_base=None, config_path="./conf", config_name="train_rl")
-def main(cfg: DictConfig):
-    logger = get_value_logger(log_dir)
+def main(cfg: Cfg):
+    print(OmegaConf.to_yaml(cfg))
+
+    value_logger = get_value_logger()
+    OmegaConf.set_struct(cfg, False)
     print(cfg)
-    constraint:BaseConstraint = instantiate(cfg.constraint, _convert_="all")
+    constraint:BaseConstraint = instantiate(cfg.task.action_constraint, _convert_="all")
     device = "cuda:1"
-    constraint.to(device)
-    print(constraint)
-    print( constraint.get_cv(th.tensor([[1, 2], [3, 4]], dtype=th.float, device=device), None))
-    exit()
+    constraint = constraint.to(device)
+    env = gym.make(**cfg.task.env)
+    extra_kwargs = {
+        "env": env,
+        "constraint": constraint,
+        "state_indexes": cfg.task.state_indexes,
+        "cv_error_margin": cfg.cv_error_margin
+    }
+    # Construct action noise
+    if "action_noise" in cfg.agent:
+        n_actions = env.action_space.shape[-1]
+        extra_kwargs['action_noise'] = NormalActionNoise(mean=np.zeros(n_actions), sigma= cfg.agent.action_noise * np.ones(n_actions))
 
-    problem: BaseProblem = all_problems[cfg.problem]
-    env = problem.get_env()
-    if cfg.agent == "ddpgflow":
-        flow = RealNvp.load_module(cfg.agent_configs.ddpgflow.flow_file)
-        model = DDPGFlow(flow, problem, env=env)
-    elif cfg.agent == "ddpgproj":
-        model = DDPGProj(problem, policy="MlpPolicy", env=env)
-        
-
-    model.set_logger(logger)
-    model.learn(total_timesteps=problem.n_timesteps)
+    model = instantiate(cfg.agent,  _convert_="all", **extra_kwargs)
+    print(model)
+    model.set_logger(value_logger)
+    model.learn(total_timesteps=cfg.task.total_timesteps)
 
 
 if __name__ == "__main__":

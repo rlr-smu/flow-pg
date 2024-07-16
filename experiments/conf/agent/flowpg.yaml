@@ -1,0 +1,8 @@
+defaults:
+  - agent_family: ddpg
+  
+_target_: core.rl.FlowPG
+
+policy_kwargs:
+  flow_file: models/${task.id}.pt
+  flow_function: 'g'
