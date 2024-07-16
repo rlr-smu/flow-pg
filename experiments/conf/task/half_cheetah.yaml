@@ -1,0 +1,18 @@
+action_constraint:
+  _target_: core.constraints.OrthoplexConstraint
+  var_count: 6
+  ub: 20
+
+id: half_cheetah
+state_bounds: [-20., 20.]
+state_indexes: [11, 12, 13, 14, 15, 16] # State indexs from the environment state
+var_count: 6
+action_low: -1.0
+action_high: 1.0
+total_timesteps: 1000_000
+
+agent:
+  learning_starts: 10_000 
+
+env:
+  id: 'HalfCheetah-v2'

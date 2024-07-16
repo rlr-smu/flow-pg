@@ -3,10 +3,12 @@ rl_models
 rl_logs
 logs
 *.pyc
-models
 figures
 sample_generation_output
 *.gif
 tmp
 gym_BSS
 gym_BSS_5
+outputs
+multirun
+*.db

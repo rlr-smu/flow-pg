@@ -1,0 +1,36 @@
+action_constraint:
+  _target_: core.constraints.SphereConstraint
+  var_count: 2
+  ub: 0.05
+  
+id: reacher 
+state_bounds: null
+state_indexes: null
+var_count: 2
+action_low: -1.0
+action_high: 1.0
+
+agent:
+  gamma: 0.98
+
+total_timesteps: 300_000
+
+env:
+  id: 'Reacher-v2'
+
+
+
+# # Combined constraint example:
+# constraint:
+#   _target_: core.constraints.CombinedConstraint
+#   _convert_: all
+#   var_count: 2
+#   conditional_param_count: 0
+#   indexes: [[[0, 1], null], [[0, 1], null]]
+#   constraints: 
+#     - _target_: core.constraints.SphereConstraint
+#       var_count: 2
+#       ub: 0.05
+#     - _target_: core.constraints.SphereConstraint
+#       var_count: 2
+#       ub: 1.15

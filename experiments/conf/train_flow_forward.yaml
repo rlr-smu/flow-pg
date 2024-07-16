@@ -1,0 +1,40 @@
+
+train_sample_count: 500_000
+test_sample_count: 500_000
+epochs: 100
+eval_freq: 1
+device: 'cuda:0'
+lr: 1e-5
+batch_size: 256
+hidden_size: 256
+transform_count: 6
+mollifier_sigma: 0.0001
+gradient_clip_value: 0.1
+feasibility_error_margin: 0.1
+take_log_again: False
+save_sample_data: False
+plot: False
+data_file: data/${task.id}.npy
+
+defaults:
+  - common
+  - task: null
+  - override hydra/sweeper: optuna
+  - override hydra/sweeper/sampler: tpe
+  - _self_
+
+hydra:
+  sweeper:
+    direction: maximize
+    study_name: train_flow_forward
+    storage: sqlite:///train_flow_forward.db
+    n_trials: 20
+    n_jobs: 5
+    params:
+      lr: tag(log, interval(1e-5, 1e-3))
+      batch_size: choice(8, 16, 32)
+
+
+
+# if true, simulate a failure by raising an exception
+error: false

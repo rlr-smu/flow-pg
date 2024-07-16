@@ -1,0 +1,4 @@
+defaults:
+  - agent_family: ddpg
+  
+_target_: core.rl.DDPGPro

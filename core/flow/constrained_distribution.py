@@ -20,7 +20,7 @@ class ConstrainedDistribution(BaseDistribution):
         self.noise_prior = th.distributions.Normal(0, 1)
         self.aggregate_method = aggregate_method
 
-    def log_prob(self, values: th.Tensor) -> th.Tensor:
-        cv_all  = self.constraint.get_cv(values)
+    def log_prob(self, values: th.Tensor, y: th.Tensor) -> th.Tensor:
+        cv_all  = self.constraint.get_cv(values, y)
         cv = self.cv_aggregators[self.aggregate_method](cv_all)
         return self.noise_prior.log_prob(cv/self.mollifier_sigma)

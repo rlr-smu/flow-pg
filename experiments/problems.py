@@ -1,18 +1,19 @@
-from core.constraints import QuadraticConstraint, BoxConstraint, ConditionedQuadraticConstraint, CombinedConstraint, OrthoplexConstraint, ConditionedLinearConstraint, PowerConstraint, BaseConstraint, OrthoplexConstraintLB
+from core.constraints import QuadraticConstraint, BoxConstraint, OrthoplexConstraint, PowerConstraint, BaseConstraint
 import torch as th
 from typing import Union, Literal
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from core.flow.data_loaders import UniformDataLoader, GaussianDataLoader, CombinedDataLoader
+from core.flow.data_loaders import UniformDataLoader, GaussianDataLoader
+from core.rl.base_problem import BaseRLProblem
+import gym
 
 
 def get_box_constraint(dim):
-    return BoxConstraint(dim, th.tensor([-1]*dim).double(), th.tensor([1]*dim).double())
+    return BoxConstraint(dim, th.tensor([-1]*dim).float(), th.tensor([1]*dim).float())
 
 
-
-class BaseProblem:
+class BaseProblem(BaseRLProblem):
     constraint: BaseConstraint
     state_action_bound_constraint: Union[BaseConstraint, None] = None # Used to sample using HMC 
     action_plot_range: list = [-1, 1]
@@ -20,6 +21,7 @@ class BaseProblem:
     state_dist_u_bound: float = 1 # For uniform: i.e. [-1, 1]
     state_dist_g_mu: float = 0.
     state_dist_g_sigma: float = 1. # For gaussian
+    n_timesteps: int = 1000000
 
     @property
     def action_bound_constraint(self):
@@ -48,23 +50,30 @@ class BaseProblem:
         else:
             raise ValueError("Invalid state-dist")
     
+    def get_env(self):
+        pass
+
+    
 """
 Define all the constraints used in all experiments here."""
 
 class R_L2(BaseProblem):
-    constraint = QuadraticConstraint(2, th.eye(2).unsqueeze(dim=0).double(), th.tensor([0.05]).double())
+    constraint = QuadraticConstraint(2, th.eye(2).unsqueeze(dim=0).float(), th.tensor([0.05]).float())
     action_plot_range: list = [-0.27, 0.27]
+    n_timesteps = 300_000
     
+    def get_env(self):
+        return gym.make("Reacher-v2")    
 
 class HC_O(BaseProblem):
-    high_b = th.tensor([1]*6 + [30]*6).double()
+    high_b = th.tensor([1]*6 + [30]*6).float()
     state_action_bound_constraint = BoxConstraint(12, low=-high_b, high=high_b)
     constraint = OrthoplexConstraint(6, 6, 20)
     state_dist = "Gaussian"
     state_dist_g_sigma = 15
 
 def get_power_constraint(dim:int, ub, state_bound):
-    high_b = th.tensor([1]*dim + [state_bound]*dim).double()
+    high_b = th.tensor([1]*dim + [state_bound]*dim).float()
     bounds = BoxConstraint(2*dim, low=-high_b, high=high_b)
     base = PowerConstraint(dim, dim, ub)
     return base, bounds

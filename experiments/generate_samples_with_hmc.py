@@ -1,48 +1,43 @@
 import seaborn
 import pandas as pd
 import numpy as np
-from typing import List
-import time
-from experiments.problems import all_problems, BaseProblem
-from core.constraints import CombinedConstraint
+from dataclasses import dataclass
+from omegaconf import DictConfig
+from experiments.config import TaskConfig
+from core.constraints import BoxConstraint, BaseConstraint
 from core.sample_generation.hmc import get_hmc_samples_for_constraint
-from experiments.common.setup_experiment import setup_experiment, flush_logs
-import dataclasses
+from experiments.common.setup_experiment import get_log_dir
+import hydra
+from hydra.utils import instantiate
+import logging
 
+logger = logging.getLogger(__name__)
 
+@dataclass
+class Cfg:
+    task: TaskConfig
+    count: int
+    plot: bool
 
-def main():
-    @dataclasses.dataclass
-    class Options:
-        problems: List[str]
-        count: int = 1000
-        plot: bool = False
+@hydra.main(version_base=None, config_path="./conf", config_name="generate_samples_with_hmc")
+def main(cfg: Cfg):
+    log_dir = get_log_dir()
+    constraint:BaseConstraint  = instantiate(cfg.task.action_constraint, _convert_="all")
 
-    args = setup_experiment("sample_generation_hmc", Options) 
+    # If state bounds are defined, we need to create a bound constraint for the state
+    if cfg.task.state_bounds is not None:
+        state_bound_constraint = BoxConstraint(constraint.var_count, cfg.task.state_bounds[0], cfg.task.state_bounds[1])
+    else:
+        state_bound_constraint = None
+    count = cfg.count
+    s = get_hmc_samples_for_constraint(constraint, state_bound_constraint, count, 0) 
+    if cfg.plot:
+        df = pd.DataFrame({f"Dim {i}": s[:, i] for i in range(s.shape[1])})
+        seaborn.pairplot(df, plot_kws={"s": 1}).savefig(f"{log_dir}/plot.png")
+    np.save(f"{log_dir}/data.npy", s)
+    logger.info(f"Done, count:{len(s)}")
+    return 0 # For multirun
 
-    log_dir = args.log_dir
-    params = args.params
-    problems = all_problems.keys() if "All" in params.problems else params.problems
-    for k in problems:
-        if k not in all_problems:
-            raise ValueError(f"Invalid problem name: {k}")
-
-    print("Running data generation for:", ", ".join(problems))
-    for k in problems:
-        print("Running:", k)
-        problem:BaseProblem  = all_problems[k]
-        start_time = time.time()
-        if problem.state_action_bound_constraint is not None:
-            constraint = CombinedConstraint(problem.constraint.var_count, problem.constraint.dim - problem.constraint.var_count, [problem.constraint, problem.state_action_bound_constraint])
-        else:
-            constraint = problem.constraint
-        s = get_hmc_samples_for_constraint(constraint, params.count, 0) 
-        print(f"Sample generation time for {k}: {(time.time() - start_time):.2f} seconds")
-        if params.plot:
-            df = pd.DataFrame({f"Dim {i}": s[:, i] for i in range(s.shape[1])})
-            seaborn.pairplot(df, plot_kws={"s": 1}).savefig(f"{log_dir}/{k}.png")
-        np.save(f"{log_dir}/{k}.npy", s)
-        flush_logs()
 
 if __name__ == "__main__":
     main()

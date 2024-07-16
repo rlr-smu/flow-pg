@@ -1,0 +1,8 @@
+defaults:
+  - common
+  - task: null
+  - agent: ddpg_pro
+  - optional agent_task: ${agent}_${task}
+  - optional agent_family_task: ${agent/agent_family}_${task}
+  
+cv_error_margin: 0.1

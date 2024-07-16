@@ -1,0 +1,5 @@
+# @package _global_
+
+agent:
+  batch_size: 100
+  buffer_size: 200_000

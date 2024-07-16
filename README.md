@@ -31,15 +31,20 @@ python ./experiments/generate_sdd.py
 ## Training the flow model
 
 ### Flow Model
+Hyper param tuning
 ```bash
-python -m experiments.train_flow_forward --log_dir ./logs/generative_models/flow_forward/Reacher --problem Reacher --data_file ./logs/sample_generation/1000000/Reacher.npy --device cuda:0  --batch_size 32
-```
-
-### WGAN
-```bash
-python -m experiments.train_wgan --log_dir ./logs/generative_models/wgan/Reacher --problem Reacher --data_file ./logs/sample_generation/1000000/Reacher.npy --device cuda:0  --batch_size 32
+python -m experiments.train_flow_forward task=reacher +data_file=outputs/generated_data/reacher.npy
 ```
 
 
 ## Training the RL agent
-Coming soon :rocket: ..
+DDPG+Projection
+```
+python -m experiments.train_rl task=reacher agent=ddpg_pro
+```
+
+**FlowPG**: Place the trained flow model inside `models/{env_name}.pt`. Eg. `models/reacher.pt` and run the following command.
+
+```
+python -m experiments.train_rl task=reacher agent=flowpg
+```
